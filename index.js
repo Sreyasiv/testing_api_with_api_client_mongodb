@@ -33,19 +33,52 @@
 
 
 const express = require('express');
-const { resolve } = require('path');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const port = 3010;
 
-app.use(express.static('static'));
+app.use(express.json()); // Middleware to parse JSON
 
-app.get('/', (req, res) => {
-  res.sendFile(resolve(__dirname, 'pages/index.html'));
+// API endpoint to fetch students above threshold
+app.post('/students/above-threshold', (req, res) => {
+    const { threshold } = req.body;
+
+    // Validate input
+    if (typeof threshold !== 'number' || threshold < 0) {
+        return res.status(400).json({ error: "Invalid threshold value. It must be a positive number." });
+    }
+
+    // Read student data from data.json
+    const dataPath = path.join(__dirname, 'data.json');
+    fs.readFile(dataPath, 'utf8', (err, data) => {
+        if (err) {
+            return res.status(500).json({ error: "Failed to read student data." });
+        }
+
+        try {
+            const students = JSON.parse(data);
+
+            // Filter students based on threshold
+            const filteredStudents = students.filter(student => student.total > threshold)
+                                             .map(student => ({ name: student.name, total: student.total }));
+
+            // Response format
+            res.json({
+                count: filteredStudents.length,
+                students: filteredStudents
+            });
+
+        } catch (parseError) {
+            res.status(500).json({ error: "Error parsing student data." });
+        }
+    });
 });
 
 app.listen(port, () => {
-  console.log(`Example app listening at http://localhost:${port}`);
+    console.log(`Server running at http://localhost:${port}`);
 });
+
 
 
